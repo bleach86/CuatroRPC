@@ -1,2 +1,2 @@
 # CuatroRPC
-Fast RPC Client Library for Python written in Rust
+Fast Bitcoin RPC Client Library for Python written in Rust
