@@ -30,22 +30,22 @@ jobs:
         include:
           # manylinux for various platforms, plus x86_64 pypy
           - os: linux
-            manylinux: auto
+            manylinux: manylinux2014
             target: i686
           - os: linux
-            manylinux: auto
+            manylinux: manylinux2014
             target: armv7
             interpreter: 3.8 3.9 3.10 3.11 3.12
           - os: linux
-            manylinux: auto
+            manylinux: manylinux2014
             target: ppc64le
             interpreter: 3.8 3.9 3.10 3.11 3.12
           - os: linux
-            manylinux: auto
+            manylinux: manylinux2014
             target: s390x
             interpreter: 3.8 3.9 3.10 3.11 3.12
           - os: linux
-            manylinux: auto
+            manylinux: manylinux2014
             target: x86_64
             interpreter: pypy3.9 pypy3.10
 
