@@ -34,9 +34,6 @@ jobs:
             target: i686
           - os: linux
             manylinux: auto
-            target: aarch64
-          - os: linux
-            manylinux: auto
             target: armv7
             interpreter: 3.8 3.9 3.10 3.11 3.12
           - os: linux
