@@ -1,0 +1,3 @@
+from typing import List
+
+def callrpc(url: str, method: str, params: str) -> List[int]: ...
