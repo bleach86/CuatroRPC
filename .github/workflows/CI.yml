@@ -49,6 +49,11 @@ jobs:
             target: x86_64
             interpreter: pypy3.9 pypy3.10
 
+          - os: linux
+            manylinux: manylinux2014
+            target: x86_64
+            interpreter: 3.8 3.9 3.10 3.11 3.12
+
           # musllinux
           - os: linux
             manylinux: musllinux_1_1
