@@ -1,8 +1,15 @@
 [package]
 name = "cuatrorpc_rs"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
+authors = ["bleach86 <tux@ghostbyjohnmcafee.com>"]
+description = "Fast RPC client library for Python in rust."
+license = "MIT"
+repository = "https://github.com/bleach86/CuatroRPC"
+homepage = "https://github.com/bleach86/CuatroRPC"
+readme = "README.md"
 
+keywords = ["fast", "rpc", "bitcoin"]
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the
 # library (i.e. `import string_sum`). If you change this, you must also change the name of the
@@ -18,6 +25,9 @@ crate-type = ["cdylib"]
 [dependencies]
 ureq = { version = "2.8.0", features = ["json"] }
 pyo3 = { version = "0.20.2", features = ["extension-module"] }
+
+serde = "1.0"
+serde_json = "1.0"
 
 [build-dependencies]
 pyo3-build-config = "0.20.0"
