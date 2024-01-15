@@ -103,7 +103,7 @@ fn callrpc_cli_rs(
 
 fn _is_numeric<S: AsRef<str>>(input: S) -> bool {
     for char in input.as_ref().chars() {
-        if !char.is_digit(10) {
+        if !matches!(char, '0'..='9' | '.') {
             return false;
         }
     }
