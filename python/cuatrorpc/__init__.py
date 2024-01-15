@@ -3,8 +3,8 @@
 Included classes:
 - RpcClient: Rpc client class
 - RpcClientAsync: ASync Rpc client class
-- RpcClientPortOnCall: Rpc client class talkig port on call
-- RpcClientPortOnCallAsync: Async Rpc client class talkig port on call
+- RpcClientCLI: Class for making RPC calls via the bitcoin-cli binary 
+- RpcClientCLIAsync: Async Class for making RPC calls via the bitcoin-cli binary
 
 Usage:
 from cuatrorpc import RpcClient
@@ -82,7 +82,7 @@ class _RpcClientBase:
             params_str: str = "[]"
         else:
             params_str = orjson.dumps(params).decode()
-        response: List[int] = cuatrorpc_rs.callrpc(
+        response: List[int] = cuatrorpc_rs.callrpc_rs(
             url,
             method,
             params_str,
@@ -146,7 +146,7 @@ class RpcClientAsync(_RpcClientBase):
         use_https: bool = False,
         port: int = 0,
         max_workers: int = 64,
-    ):
+    ) -> None:
         super().__init__(
             host=host,
             username=username,
@@ -185,6 +185,161 @@ class RpcClientAsync(_RpcClientBase):
             self._init_executor()
         return await self.loop.run_in_executor(
             self.executor, self._callrpc, method, params, wallet
+        )
+
+
+class _RpcClientCLIBase:
+    def __init__(
+        self, *, cli_bin_path: str, data_dir_path: str, daemon_conf_path: str
+    ) -> None:
+        self.cli_bin = cli_bin_path
+        self.data_dir = data_dir_path
+        self.daemon_conf = daemon_conf_path
+
+    def _callrpc_cli(
+        self,
+        method: str,
+        params: Optional[List[Any]] = None,
+        wallet: Optional[str] = None,
+    ) -> Any:
+        """Private method for making RPC calls via CLI binary
+        Arguments:
+        method -- str: The RPC method to call. Example "getblockcount"
+
+        Keyword arguments:
+        params -- List[Any]: A list of paramaters to pass along with the method.
+        wallet -- Optional[str]: Optionally specify the wallet to make the call with.
+        Returns -- Any: Returns the response from the RPC server.
+        """
+        if wallet is None:
+            wallet = ""
+
+        if params is None:
+            params_str: str = "[]"
+        else:
+            params_str = orjson.dumps(params).decode()
+
+        response: str = cuatrorpc_rs.callrpc_cli_rs(
+            self.cli_bin,
+            self.data_dir,
+            self.daemon_conf,
+            method,
+            wallet,
+            params_str,
+        )
+        resp_decoded: Dict[str, Any] = orjson.loads(response)
+
+        if resp_decoded["error"]:
+            raise ValueError("RPC error " + str(resp_decoded["error"]))
+
+        return resp_decoded["result"]
+
+
+class RpcClientCLI(_RpcClientCLIBase):
+    """Main sync CLI Rpc Client class
+
+    Keyword arguments:
+    cli_bin_path -- str: The full path to the CLI binary e.g. /home/user/btc_bin/bitcoin-cli
+    data_dir_path -- str: The full path to the daemon data directory e.g. /home/user/.bitcoin
+    daemon_conf -- str: The full path to the daemon configuration file. e.g bitcoin.conf
+    use_alias -- bool: Set to True to use callrpc for calls to callrpc_cli.
+    """
+
+    def __init__(
+        self,
+        *,
+        cli_bin_path: str,
+        data_dir_path: str,
+        daemon_conf_path: str,
+        use_alias: bool = False,
+    ) -> None:
+        super().__init__(
+            cli_bin_path=cli_bin_path,
+            data_dir_path=data_dir_path,
+            daemon_conf_path=daemon_conf_path,
+        )
+
+        if use_alias:
+            self.callrpc = self.callrpc_cli
+
+    def callrpc_cli(
+        self,
+        method: str,
+        params: Optional[List[Any]] = None,
+        wallet: Optional[str] = None,
+    ) -> Any:
+        """Method for making RPC calls via CLI binary
+        Arguments:
+        method -- str: The RPC method to call. Example "getblockcount"
+
+        Keyword arguments:
+        params -- List[Any]: A list of paramaters to pass along with the method.
+        wallet -- Optional[str]: Optionally specify the wallet to make the call with.
+        Returns -- Any: Returns the response from the RPC server.
+        """
+
+        return self._callrpc_cli(method=method, params=params, wallet=wallet)
+
+
+class RpcClientCLIAsync(_RpcClientCLIBase):
+    """Async CLI Rpc Client class
+
+    Keyword arguments:
+    cli_bin_path -- str: The full path to the CLI binary e.g. /home/user/btc_bin/bitcoin-cli
+    data_dir_path -- str: The full path to the daemon data directory e.g. /home/user/.bitcoin
+    daemon_conf -- str: The full path to the daemon configuration file. e.g bitcoin.conf
+    use_alias -- bool: Set to True to use callrpc for calls to callrpc_cli.
+    max_workers -- int: The maximum number of threadpool workers to spawn.
+    """
+
+    def __init__(
+        self,
+        *,
+        cli_bin_path: str,
+        data_dir_path: str,
+        daemon_conf_path: str,
+        use_alias: bool = False,
+        max_workers: int = 64,
+    ) -> None:
+        super().__init__(
+            cli_bin_path=cli_bin_path,
+            data_dir_path=data_dir_path,
+            daemon_conf_path=daemon_conf_path,
+        )
+
+        self.max_workers: int = max_workers
+        self.async_init: bool = False
+
+        if use_alias:
+            self.callrpc = self.callrpc_cli
+
+    def _init_executor(self) -> None:
+        self.loop: AbstractEventLoop = asyncio.get_running_loop()
+
+        self.executor: ThreadPoolExecutor = ThreadPoolExecutor(
+            max_workers=self.max_workers,
+        )
+        self.async_init = True
+
+    async def callrpc_cli(
+        self,
+        method: str,
+        params: Optional[List[Any]] = None,
+        wallet: Optional[str] = None,
+    ) -> Any:
+        """Async wrapper method for making RPC calls via CLI binary
+        Arguments:
+        method -- str: The RPC method to call. Example "getblockcount"
+
+        Keyword arguments:
+        params -- List[Any]: A list of paramaters to pass along with the method.
+        wallet -- Optional[str]: Optionally specify the wallet to make the call with.
+        Returns -- Any: Returns the response from the RPC server.
+        """
+        if not self.async_init:
+            self._init_executor()
+        return await self.loop.run_in_executor(
+            self.executor, self._callrpc_cli, method, params, wallet
         )
 
 
