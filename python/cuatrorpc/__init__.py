@@ -21,7 +21,6 @@ import asyncio
 from asyncio import AbstractEventLoop
 from concurrent.futures import ThreadPoolExecutor
 from cuatrorpc import cuatrorpc_rs
-import orjson
 
 
 class _RpcClientBase:
@@ -62,7 +61,7 @@ class _RpcClientBase:
         self,
         method: str,
         params: Optional[List[Any]] = None,
-        wallet: Optional[str] = None,
+        wallet: str = "",
     ) -> Any:
         """Private method for making RPC calls
         Arguments:
@@ -73,26 +72,19 @@ class _RpcClientBase:
         wallet -- Optional[str]: Optionally specify the wallet to make the call with.
         Returns -- Any: Returns the response from the RPC server.
         """
-        if wallet:
-            url: str = f"{self.url}/wallet/{wallet}"
-        else:
-            url = self.url
 
-        if params is None:
-            params_str: str = "[]"
-        else:
-            params_str = orjson.dumps(params).decode()
-        response: List[int] = cuatrorpc_rs.callrpc_rs(
-            url,
+        response: Dict[str, Any] = cuatrorpc_rs.callrpc_rs(
+            self.url,
             method,
-            params_str,
+            wallet,
+            params if params is not None else [],
         )
-        resp_decoded: Dict[str, Any] = orjson.loads(bytes(response))
 
-        if resp_decoded["error"]:
-            raise ValueError("RPC error " + str(resp_decoded["error"]))
 
-        return resp_decoded["result"]
+        if response["error"]:
+            raise ValueError("RPC error " + str(response["error"]))
+
+        return response["result"]
 
 
 class RpcClient(_RpcClientBase):
@@ -110,7 +102,7 @@ class RpcClient(_RpcClientBase):
         self,
         method: str,
         params: Optional[List[Any]] = None,
-        wallet: Optional[str] = None,
+        wallet: str = "",
     ) -> Any:
         """Method for making RPC calls
         Arguments:
@@ -170,7 +162,7 @@ class RpcClientAsync(_RpcClientBase):
         self,
         method: str,
         params: Optional[List[Any]] = None,
-        wallet: Optional[str] = None,
+        wallet: str = "",
     ) -> Any:
         """Async wrapper method for making RPC calls
         Arguments:
@@ -200,7 +192,7 @@ class _RpcClientCLIBase:
         self,
         method: str,
         params: Optional[List[Any]] = None,
-        wallet: Optional[str] = None,
+        wallet: str = "",
     ) -> Any:
         """Private method for making RPC calls via CLI binary
         Arguments:
@@ -211,28 +203,20 @@ class _RpcClientCLIBase:
         wallet -- Optional[str]: Optionally specify the wallet to make the call with.
         Returns -- Any: Returns the response from the RPC server.
         """
-        if wallet is None:
-            wallet = ""
 
-        if params is None:
-            params_str: str = "[]"
-        else:
-            params_str = orjson.dumps(params).decode()
-
-        response: str = cuatrorpc_rs.callrpc_cli_rs(
+        response: Dict[str, Any] = cuatrorpc_rs.callrpc_cli_rs(
             self.cli_bin,
             self.data_dir,
             self.daemon_conf,
             method,
             wallet,
-            params_str,
+            params if params is not None else [],
         )
-        resp_decoded: Dict[str, Any] = orjson.loads(response)
 
-        if resp_decoded["error"]:
-            raise ValueError("RPC error " + str(resp_decoded["error"]))
+        if response["error"]:
+            raise ValueError("RPC error " + str(response["error"]))
 
-        return resp_decoded["result"]
+        return response["result"]
 
 
 class RpcClientCLI(_RpcClientCLIBase):
@@ -266,7 +250,7 @@ class RpcClientCLI(_RpcClientCLIBase):
         self,
         method: str,
         params: Optional[List[Any]] = None,
-        wallet: Optional[str] = None,
+        wallet: str = "",
     ) -> Any:
         """Method for making RPC calls via CLI binary
         Arguments:
@@ -325,7 +309,7 @@ class RpcClientCLIAsync(_RpcClientCLIBase):
         self,
         method: str,
         params: Optional[List[Any]] = None,
-        wallet: Optional[str] = None,
+        wallet: str = "",
     ) -> Any:
         """Async wrapper method for making RPC calls via CLI binary
         Arguments:

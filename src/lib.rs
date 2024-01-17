@@ -1,10 +1,25 @@
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use pyo3::types::{PyAny, PyDict, PyList};
 use serde_json::Value;
-use std::io::Read;
 use std::process::Command;
 
 #[pyfunction]
-fn callrpc_rs(url: &str, method: &str, params: &str) -> PyResult<Option<Vec<u8>>> {
+fn callrpc_rs(
+    py: Python<'_>,
+    url: &str,
+    method: &str,
+    wallet: &str,
+    params: &PyList,
+) -> PyResult<Option<PyObject>> {
+    let params_str: String = params.to_string();
+
+    let params_sanatized: String = params_str
+        .replace("'", "\"")
+        .replace("True", "true")
+        .replace("False", "false")
+        .replace("None", "null");
+
     let request_body: String = format!(
         r#"
         {{
@@ -14,41 +29,59 @@ fn callrpc_rs(url: &str, method: &str, params: &str) -> PyResult<Option<Vec<u8>>
             "params": {}
         }}
     "#,
-        method, params
+        method, params_sanatized
     );
 
-    let response: ureq::Response = ureq::post(url)
+    let req_url: String = if wallet.is_empty() {
+        url.to_string()
+    } else {
+        format!("{}/wallet/{}", url, wallet)
+    };
+
+    let response: ureq::Response = ureq::post(&req_url)
         .set("Content-Type", "application/json")
         .set("User-Agent", "CuatroRPC")
         .send_string(&request_body)
-        .map_err(|e: ureq::Error| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("RPC ERROR: {}", e))
-        })?;
+        .map_err(|e: ureq::Error| PyErr::new::<PyRuntimeError, _>(format!("RPC ERROR: {}", e)))?;
 
-    let len_content: usize = response.header("Content-Length").unwrap().parse()?;
+    let resp_json: Value = response.into_json().map_err(|e: std::io::Error| {
+        PyErr::new::<PyRuntimeError, _>(format!("JSON Parsing Error: {}", e))
+    })?;
 
-    let mut response_bytes: Vec<u8> = Vec::with_capacity(len_content);
-    response
-        .into_reader()
-        .take((len_content + 1) as u64)
-        .read_to_end(&mut response_bytes)
-        .map_err(|e: std::io::Error| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Read Error: {}", e))
-        })?;
+    let result_value: Value = resp_json["result"].clone();
+    let error_value: i64 = resp_json["error"].as_i64().unwrap_or(0);
 
-    Ok(Some(response_bytes))
+    let py_dict: &PyDict = PyDict::new(py);
+
+    if let Some(py_result) = _response_to_py_object(py, &result_value) {
+        py_dict.set_item("result", py_result)?;
+    } else {
+        py_dict.set_item("result", result_value.to_string())?;
+    }
+
+    py_dict.set_item("error", error_value)?;
+    Ok(Some(py_dict.into_py(py)))
 }
 
 #[pyfunction]
 fn callrpc_cli_rs(
+    py: Python<'_>,
     cli_bin: &str,
     data_dir: &str,
     daemon_conf: &str,
     method: &str,
     wallet: &str,
-    call_args: &str,
-) -> PyResult<String> {
-    let parsed_json: Value = serde_json::from_str(call_args).expect("Failed to parse JSON");
+    call_args: &PyList,
+) -> PyResult<PyObject> {
+    let call_args_str: String = call_args.to_string();
+
+    let args_sanatized: String = call_args_str
+        .replace("'", "\"")
+        .replace("True", "true")
+        .replace("False", "false")
+        .replace("None", "null");
+
+    let parsed_json: Value = serde_json::from_str(&args_sanatized).expect("Failed to parse JSON");
 
     let formatted_args: Vec<String> = parsed_json
         .as_array()
@@ -59,7 +92,7 @@ fn callrpc_cli_rs(
                 if _is_numeric(string_value) || _is_probably_json(string_value) {
                     string_value.to_string()
                 } else {
-                    let unquoted_string: &str = _unquote_sting(string_value);
+                    let unquoted_string: &str = _unquote_string(string_value);
                     unquoted_string.to_string()
                 }
             } else {
@@ -85,24 +118,78 @@ fn callrpc_cli_rs(
             if result.status.success() {
                 let result_str: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&result.stdout);
                 let res: String = result_str.replace("\n", "");
-                if _is_numeric(res.clone()) || _is_probably_json(res.clone()) {
-                    Ok(format!("{{\"result\": {}, \"error\": 0}}", res))
+                let dict: &PyDict = PyDict::new(py);
+                if _is_numeric(res.as_str()) {
+                    if !res.contains(".") {
+                        let py_long: i64 = res.parse()?;
+                        dict.set_item("result", py_long)?;
+                    } else {
+                        let py_float: f64 = res.parse()?;
+                        dict.set_item("result", py_float)?;
+                    }
                 } else {
-                    Ok(format!("{{\"result\": \"{}\", \"error\": 0}}", res))
+                    if let Ok(json_value) = serde_json::from_str::<Value>(&res) {
+                        dict.set_item("result", _response_to_py_object(py, &json_value))?;
+                    } else {
+                        dict.set_item("result", res)?;
+                    }
                 }
+                dict.set_item("error", 0)?;
+                Ok(dict.into())
             } else {
                 let error_message: std::borrow::Cow<'_, str> =
                     String::from_utf8_lossy(&result.stderr);
                 let err_res: String = error_message.replace("\n", "");
-                Ok(format!("{{\"result\": 0, \"error\": \"{}\"}}", err_res))
+                let dict: &PyDict = PyDict::new(py);
+                dict.set_item("result", 0)?;
+                dict.set_item("error", err_res)?;
+                Ok(dict.into())
             }
         }
-        Err(e) => Ok(format!("{{\"result\": 0, \"error\": \"{}\"}}", e)),
+        Err(e) => {
+            let dict: &PyDict = PyDict::new(py);
+            dict.set_item("result", 0)?;
+            dict.set_item("error", e.to_string())?;
+            Ok(dict.into())
+        }
     }
 }
 
-fn _is_numeric<S: AsRef<str>>(input: S) -> bool {
-    for char in input.as_ref().chars() {
+fn _response_to_py_object(py: Python<'_>, value: &Value) -> Option<PyObject> {
+    match value {
+        Value::Null => None,
+        Value::Bool(b) => Some(b.clone().into_py(py)),
+        Value::Number(num) => {
+            if num.is_i64() {
+                Some(num.as_i64().unwrap().into_py(py))
+            } else if num.is_f64() {
+                Some(num.as_f64().unwrap().into_py(py))
+            } else {
+                None
+            }
+        }
+        Value::String(s) => Some(s.clone().into_py(py)),
+        Value::Array(arr) => {
+            let py_list: Vec<Py<PyAny>> = arr
+                .iter()
+                .map(|v: &Value| _response_to_py_object(py, v))
+                .collect::<Option<Vec<PyObject>>>()?;
+            Some(py_list.into_py(py))
+        }
+        Value::Object(obj) => {
+            let py_dict: &PyDict = PyDict::new(py);
+            for (k, v) in obj {
+                if let Some(py_value) = _response_to_py_object(py, v) {
+                    py_dict.set_item(k, py_value).ok()?;
+                }
+            }
+            Some(py_dict.into())
+        }
+    }
+}
+
+fn _is_numeric(input: &str) -> bool {
+    for char in input.chars() {
         if !matches!(char, '0'..='9' | '.') {
             return false;
         }
@@ -117,7 +204,7 @@ fn _is_probably_json<S: AsRef<str>>(input: S) -> bool {
         || input_str.starts_with("[") && input_str.ends_with("]")
 }
 
-fn _unquote_sting<'a, S: AsRef<str> + ?Sized>(input: &'a S) -> &'a str {
+fn _unquote_string<'a, S: AsRef<str> + ?Sized>(input: &'a S) -> &'a str {
     let input_str: &str = input.as_ref();
 
     let quotes: Vec<&str> = vec!["'", "\"", "'''", "\"\"\""];

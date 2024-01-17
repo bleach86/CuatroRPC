@@ -19,7 +19,7 @@ include = [
 
 [project]
 name = "cuatrorpc"
-dependencies = ["orjson"]
+# dependencies = [""]
 repository = "https://github.com/bleach86/CuatroRPC"
 requires-python = ">=3.8"
 classifiers = [
