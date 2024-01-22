@@ -1,6 +1,6 @@
 [package]
 name = "cuatrorpc_rs"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 authors = ["bleach86 <tux@ghostbyjohnmcafee.com>"]
 description = "Fast RPC client library for Python in rust."
