@@ -74,7 +74,7 @@ You can optionally use the cli binary to make rpc calls.
 from cuatrorpc import RpcClientCLI
 
 
-rpc = RpcClientCLI(cli_bin_path="/path/to/bitcoin-cli",
+rpc_cli = RpcClientCLI(cli_bin_path="/path/to/bitcoin-cli",
                                 data_dir_path="/path/to/.bitcoin",
                                 daemon_conf_path="/path/to/.bitcoin/bitcoin.conf"
                                 )
@@ -82,23 +82,7 @@ rpc = RpcClientCLI(cli_bin_path="/path/to/bitcoin-cli",
 # Everything from here is the same as the http version except the method is called callrpc_cli
 
 # Get the block count
-print(rpc.callrpc_cli("getblockcount"))
-```
-
-```
-from cuatrorpc import RpcClientCLI
-
-
-rpc = RpcClientCLI(cli_bin_path="/path/to/bitcoin-cli",
-                                data_dir_path="/path/to/.bitcoin",
-                                daemon_conf_path="/path/to/.bitcoin/bitcoin.conf",
-                                use_alias=True,
-                                )
-
-# You can optionally pass the use_alias=True arg. This allows you to use callrpc as well as callrpc_cli
-
-# Get the block count
-print(rpc.callrpc("getblockcount"))
+print(rpc_cli.callrpc("getblockcount"))
 ```
 
 For Async operations, use the RpcClientCLIAsync class
@@ -108,7 +92,7 @@ from cuatrorpc import RpcClientCLIAsync
 import asyncio
 
 
-rpc = RpcClientCLIAsync(cli_bin_path="/path/to/bitcoin-cli",
+rpc_cli = RpcClientCLIAsync(cli_bin_path="/path/to/bitcoin-cli",
                                 data_dir_path="/path/to/.bitcoin",
                                 daemon_conf_path="/path/to/.bitcoin/bitcoin.conf"
                                 )
@@ -117,7 +101,7 @@ rpc = RpcClientCLIAsync(cli_bin_path="/path/to/bitcoin-cli",
 
 async def main():
   # Get the block count
-  block_count = await rpc.callrpc_cli("getblockcount")
+  block_count = await rpc_cli.callrpc("getblockcount")
   print(block_count)
 
 if __name__ == "__main__":
