@@ -52,7 +52,7 @@ dependencies = [
 
 [[package]]
 name = "cuatrorpc_rs"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
