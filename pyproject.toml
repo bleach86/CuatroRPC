@@ -11,10 +11,7 @@ module-name = "cuatrorpc.cuatrorpc_rs"
 profile = "release"
 
 compatibility = "linux"
-include = [
-    "python/cuatrorpc/cuatrorpc_rs.pyi",
-    "python/cuatrorpc/cuatrorpc.pyi",
-]
+include = ["python/cuatrorpc/cuatrorpc_rs.pyi", "python/cuatrorpc/__init__.pyi"]
 
 
 [project]

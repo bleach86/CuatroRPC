@@ -1,11 +1,32 @@
-from typing import List, Dict, Any
+from typing import List, Any, Optional
 
-def callrpc_rs(url: str, method: str, wallet:str, params: List[Any]) -> Dict[str, Any]: ...
-def callrpc_cli_rs(
-    cli_bin: str,
-    data_dir: str,
-    daemon_conf: str,
-    method: str,
-    wallet: str,
-    call_args: List[Any],
-) -> Dict[str, Any]: ...
+class RpcClient:
+    def __new__(
+        self,
+        username: str,
+        password: str,
+        port: int,
+        host: Optional[str] = "localhost",
+        use_https: Optional[bool] = False,
+        timeout: Optional[int] = 120,
+    ): ...
+    def callrpc(
+        self,
+        method: str,
+        params: Optional[List[Any]] = None,
+        wallet: Optional[str] = "",
+    ) -> Any: ...
+
+class RpcClientCLI:
+    def __new__(
+        self,
+        cli_bin: str,
+        data_dir: str,
+        daemon_conf: str,
+    ): ...
+    def callrpc(
+        self,
+        method: str,
+        call_args: Optional[List[Any]] = None,
+        wallet: Optional[str] = "",
+    ) -> Any: ...
