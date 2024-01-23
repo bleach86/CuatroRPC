@@ -61,6 +61,7 @@ impl RpcClient {
     ) -> PyResult<Option<PyObject>> {
         let agent: Agent = AgentBuilder::new()
             .timeout_read(Duration::from_secs(self.rpc_timeout))
+            .timeout(Duration::from_secs(self.rpc_timeout))
             .build();
 
         let params_value: Vec<Value> =
@@ -126,7 +127,7 @@ impl RpcClientCLI {
     }
 
     fn callrpc(
-        &mut self,
+        &self,
         py: Python<'_>,
         method: &str,
         params: Option<&PyList>,
@@ -191,8 +192,10 @@ impl RpcClientCLI {
                 } else {
                     let error_message: std::borrow::Cow<'_, str> =
                         String::from_utf8_lossy(&result.stderr);
-                    let err_res: String = error_message.replace("\n", "");
-                    Err(PyErr::new::<PyRuntimeError, _>(format!("{}", err_res)))
+                    Err(PyErr::new::<PyRuntimeError, _>(format!(
+                        "{}",
+                        error_message
+                    )))
                 }
             }
             Err(e) => Err(PyErr::new::<PyRuntimeError, _>(format!(
