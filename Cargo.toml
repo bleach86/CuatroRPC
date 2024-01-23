@@ -1,6 +1,6 @@
 [package]
 name = "cuatrorpc_rs"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 authors = ["bleach86 <tux@ghostbyjohnmcafee.com>"]
 description = "Fast RPC client library for Python in rust."
@@ -26,6 +26,7 @@ crate-type = ["cdylib"]
 ureq = { version = "2.8.0", features = ["json"] }
 pyo3 = { version = "0.20.2", features = ["extension-module"] }
 pythonize = "0.20.0"
+
 
 serde = { version = "1.0.166", features = ["derive"] }
 serde_json = "1.0.100"

@@ -27,6 +27,6 @@ class RpcClientCLI:
     def callrpc(
         self,
         method: str,
-        call_args: Optional[List[Any]] = None,
+        params: Optional[List[Any]] = None,
         wallet: Optional[str] = "",
     ) -> Any: ...
